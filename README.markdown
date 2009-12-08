@@ -1,10 +1,12 @@
 YouTube Video Field
--------------------
+===================
+
+This is a Symphony extension that allows you to integrate YouTube videos into your sections.
 
 - Version: 0.1
-- Author: Rainer Borene (rainerborene@gmail.com)
+- Author: [Rainer Borene](mailto:rainerborene@gmail.com)
 - Build Date: 2009-12-08
-- Requirements: Symphony 2.0.2
+- Requirements: Symphony 2.0.6
 
 ### Installation
 
