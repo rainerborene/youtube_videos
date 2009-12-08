@@ -66,20 +66,12 @@
 		}
 
 		public function appendFormattedElement(&$wrapper, $data){
-
 			if(!is_array($data) || empty($data)) return;
 
-
-			/*
-				FIXME: That calculation really works?
-			*/
-			
 			// If cache has expired refresh the data array from parsing the API XML
-			/*
 			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
 				$data = YouTubeHelper::updateClipInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
 			}
-			*/
 
 			$video = new XMLElement($this->get('element_name'));
 
@@ -98,22 +90,18 @@
 			$author->appendChild(new XMLElement('url', $data['user_url']));
 
 			$video->appendChild($author);
-
 			$wrapper->appendChild($video);
 		}
 
-
-		/*
-			FIXME: Information about video isn't appending correctly.
-		*/
 		public function displayPublishPanel(&$wrapper, $data=NULL, $flagWithError=NULL, $fieldnamePrefix=NULL, $fieldnamePostfix=NULL){
 			$value = General::sanitize($data['video_id']);
+			$source = "http://www.youtube.com/watch/?v={$value}";
 			$label = Widget::Label($this->get('label'));
 
 			$video_id = new XMLElement('input');
 			$video_id->setAttribute('type', 'text');
 			$video_id->setAttribute('name', 'fields' . $fieldnamePrefix . '[' . $this->get('element_name') . ']' . $fieldnamePostfix);
-			$video_id->setAttribute('value', $value);
+			$video_id->setAttribute('value', $source);
 
 			if (strlen($value) == 0 || $flagWithError != NULL){
 
@@ -153,18 +141,16 @@
 				$video->appendChild($embed);
 				$video_container->appendChild($video);
 
-				$meta = new XMLElement('span', $data['title'] . ' by <a href="' . $data['user_url'] . '">' . $data['user_name'] . '</a>');
-				$meta->setAttribute('class', 'meta');
-				$video_container->appendChild($meta);
+				$description = new XMLElement('div');
+				$description->setAttribute('class', 'description');
+				$description->setValue($data['title'] . ' by <a href="' . $data['user_url'] . '" target="blank">' . $data['user_name'] . '</a> (' . $data['views'] . ' views)');
 
-				$meta = new XMLElement('span', $data['views'] . ' views');
-				$meta->setAttribute('class', 'meta');	
-				$video_container->appendChild($meta);				
-			
 				$change = new XMLElement('a', 'Remove Video');
 				$change->setAttribute('class', 'change');
-				$video_container->appendChild($change);
-				
+				$description->appendChild($change);
+
+				$video_container->appendChild($description);
+
 				$label->appendChild($video_container);
 			}
 

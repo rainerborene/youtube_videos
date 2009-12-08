@@ -27,8 +27,8 @@
 
 		public function __appendJavaScript($context){
 			if(isset(Administration::instance()->Page->_context['section_handle']) && in_array(Administration::instance()->Page->_context['page'], array('new', 'edit'))){
-				Administration::instance()->Page->addStylesheetToHead(URL . '/extensions/vimeo_videos/assets/youtube_video.css', 'screen', 190);
-				Administration::instance()->Page->addScriptToHead(URL . '/extensions/vimeo_videos/assets/youtube_video.js', 195);
+				Administration::instance()->Page->addStylesheetToHead(URL . '/extensions/youtube_videos/assets/youtube_video.css', 'screen', 190);
+				Administration::instance()->Page->addScriptToHead(URL . '/extensions/youtube_videos/assets/youtube_video.js', 195);
 			}
 		}
 

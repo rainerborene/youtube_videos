@@ -3,7 +3,7 @@ YouTube Video Field
 
 - Version: 0.1
 - Author: Rainer Borene (rainerborene@gmail.com)
-- Build Date: 2009-12-07
+- Build Date: 2009-12-08
 - Requirements: Symphony 2.0.2
 
 ### Installation
@@ -12,7 +12,7 @@ YouTube Video Field
 
 2. Enable it by selecting "Field: YouTube", choose Enable from the with-selected menu, then click Apply.
 
-3. You can now add the "YouTube Video Field" field to your sections.
+3. You can now add the "YouTube Video" field to your sections.
 
 ### Changes
 

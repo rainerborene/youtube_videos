@@ -1,32 +1,39 @@
 .field-youtube_video span {
+	text-align:left;
 	position: relative;
 }
 
+.field-youtube_video .description {
+	padding-top:8px;
+}
+
 .field-youtube_video a.change {
-	position: absolute;
-	bottom: 1em;
-	right: 1em;
 	color: #999;
+	float:right;
 }
 
 .field-youtube_video a.change:hover {
 	color: #d43;
 }
 
+/*
 .field-youtube_video span.meta {
 	padding: 0;
 	border: none;
 	background-color: transparent;
 	margin: 1em 4em 0 0;
 }
+*/
 
 .field-youtube_video input.hidden {
 	display: none;
 }
 
+/*
 span#update {
 	width: auto;
 	display: inline;
 	float: right;
 	font-size: 0.8em;
 }
+*/
