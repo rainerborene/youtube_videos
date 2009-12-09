@@ -32,14 +32,14 @@
 
 			$video_id = YouTubeHelper::getVideoId($data);
 
-			if (is_null($video_id)){
+			if (is_null($video_id) && strlen($data) > 32){
 				$message = __("%s must be a valid YouTube video id or video URL", array($this->get('label')));
 				return self::__INVALID_FIELDS__;
 			}
 
 			$video = YouTubeHelper::getVideoInfo($video_id);
 
-			if (!$video){
+			if (!$video && strlen($data) > 32){
 				$message = __("Failed to load video XML");
 				return self::__INVALID_FIELDS__;
 			}
