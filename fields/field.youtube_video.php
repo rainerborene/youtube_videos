@@ -48,13 +48,13 @@
 		}
 
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
-			if (trim($data) == '') return array();
+			if (strlen($data) <= 32) return array();
 
 			$status = self::__OK__;
 
 			$result = YouTubeHelper::getVideoInfo(YouTubeHelper::getVideoId($data));
 
-			// HACK: couldn't figure out how to validate in checkPostFieldData() and then prevent 
+			// HACK: couldn't figure out how to validate in checkPostFieldData() and then prevent
 			// this processRawFieldData function executing, since it requires valid data to load the XML
 			if (!is_array($result)) {
 				$message = __("Failed to load clip XML");
@@ -65,12 +65,12 @@
 			return $result;
 		}
 
-		public function appendFormattedElement(&$wrapper, $data){
+		public function appendFormattedElement(&$wrapper, $data) {
 			if(!is_array($data) || empty($data)) return;
 
 			// If cache has expired refresh the data array from parsing the API XML
 			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
-				$data = YouTubeHelper::updateClipInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
+				$data = YouTubeHelper::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
 			}
 
 			$video = new XMLElement($this->get('element_name'));
@@ -129,7 +129,7 @@
 				$param = new XMLElement('param');
 				$param->setAttribute('movie', $video_url);
 				$video->appendChild($param);
-			
+
 				$embed = new XMLElement('embed');
 				$embed->setAttribute('src', $video_url);
 				$embed->setAttribute('allowfullscreen', 'true');
@@ -181,7 +181,7 @@
 		}
 
 		public function displaySettingsPanel(&$wrapper, $errors=NULL){
-			parent::displaySettingsPanel($wrapper, $errors);			
+			parent::displaySettingsPanel($wrapper, $errors);
 			$this->appendRequiredCheckbox($wrapper);
 			$this->appendShowColumnCheckbox($wrapper);
 
@@ -258,7 +258,7 @@
 			$fields['refresh'] = $refresh;
 
 			$this->_engine->Database->query("DELETE FROM `tbl_fields_".$this->handle()."` WHERE `field_id` = '$id' LIMIT 1");
-			return $this->_engine->Database->insert($fields, 'tbl_fields_' . $this->handle());					
+			return $this->_engine->Database->insert($fields, 'tbl_fields_' . $this->handle());
 		}
 
 		public function createTable(){
@@ -279,7 +279,7 @@
 					`last_updated` int(11) unsigned NOT NULL,
 					PRIMARY KEY  (`id`),
 					KEY `entry_id` (`entry_id`)
-				);"			
+				);"
 			);
 		}
 
