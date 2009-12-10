@@ -82,11 +82,11 @@
 				'views' => $data['views']
 			));
 
-			$video->appendChild(new XMLElement('title', $data['title']));
-			$video->appendChild(new XMLElement('description', $data['description']));
+			$video->appendChild(new XMLElement('title', General::sanitize($data['title'])));
+			$video->appendChild(new XMLElement('description', General::sanitize($data['description'])));
 
 			$author = new XMLElement('author');
-			$author->appendChild(new XMLElement('name', $data['user_name']));
+			$author->appendChild(new XMLElement('name', General::sanitize($data['user_name'])));
 			$author->appendChild(new XMLElement('url', $data['user_url']));
 
 			$video->appendChild($author);
