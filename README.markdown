@@ -3,10 +3,10 @@ YouTube Video Field
 
 This is a Symphony extension that allows you to integrate YouTube videos into your sections.
 
-- Version: 0.1
-- Author: [Rainer Borene](mailto:rainerborene@gmail.com)
-- Build Date: 2009-12-08
-- Requirements: Symphony 2.0.6
+- Version: 0.2
+- Author: [Rainer Borene](mailto:me@rainerborene.com)
+- Build Date: 2010-03-08
+- Requirements: Symphony 2.0.6+
 
 ### Installation
 
@@ -17,6 +17,10 @@ This is a Symphony extension that allows you to integrate YouTube videos into yo
 3. You can now add the "YouTube Video" field to your sections.
 
 ### Changes
+
+0.2
+
+- Fixed video ID issue.
 
 0.1
 

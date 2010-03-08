@@ -2,113 +2,95 @@
 
 	if (!defined('__IN_SYMPHONY__')) die('<h2>Symphony Error</h2><p>You cannot directly access this file</p>');
 
-	require_once(EXTENSIONS . '/youtube_videos/lib/youtube_helper.php');
+	class fieldYouTube_Video extends Field {
 
-	class FieldYouTube_Video extends Field {
+	/*-------------------------------------------------------------------------
+		Definition:
+	-------------------------------------------------------------------------*/
 
-		public function __construct(&$parent){
+		public function __construct(&$parent) {
 			parent::__construct($parent);
+
 			$this->_name = 'YouTube Video';
 			$this->_required = false;
 
 			$this->set('required', 'no');
 		}
 
-		public function isSortable(){
+		public function createTable() {
+			return Symphony::Database()->query(
+				"CREATE TABLE IF NOT EXISTS `tbl_entries_data_" . $this->get('id') . "` (
+					`id` int(11) unsigned NOT NULL auto_increment,
+					`entry_id` int(11) unsigned NOT NULL,
+					`video_id` varchar(11) default NULL,
+					`title` varchar(255) default NULL,
+					`description` text,
+					`keywords` text,
+					`duration` int(11) unsigned NOT NULL,
+					`favorites` int(11) unsigned NOT NULL,
+					`views` int(11) unsigned NOT NULL,
+					`user_name` varchar(255) default NULL,
+					`user_url` varchar(255) default NULL,
+					`published_date` int(11) unsigned NOT NULL,
+					`last_updated` int(11) unsigned NOT NULL,
+					PRIMARY KEY  (`id`),
+					KEY `entry_id` (`entry_id`)
+				);"
+			);
+		}
+
+		public function allowDatasourceOutputGrouping() {
+			return false;
+		}
+
+		public function allowDatasourceParamOutput() {
+			return false;
+		}
+
+		public function canFilter() {
 			return true;
 		}
 
-		public function canFilter(){
+		public function canPrePopulate() {
+			return false;
+		}
+
+		public function isSortable() {
 			return true;
 		}
 
-		public function checkPostFieldData($data, &$message, $entry_id=NULL){
-			$message = NULL;
+	/*-------------------------------------------------------------------------
+		Settings:
+	-------------------------------------------------------------------------*/
+	
+		public function displaySettingsPanel(&$wrapper, $errors=NULL){
+			parent::displaySettingsPanel($wrapper, $errors);
 
-			if ($this->get('required') == 'yes' && strlen($data) == 0){
-				$message = __("'%s' is a required field.", array($this->get('label')));
-				return self::__MISSING_FIELDS__;
-			}
+			$label = Widget::Label('Update cache (minutes; leave blank to never update) <i>Optional</i>');
+			$label->appendChild(Widget::Input("fields[{$this->get('sortorder')}][refresh]", $this->get('refresh')));
 
-			$video_id = YouTubeHelper::getVideoId($data);
-
-			if (is_null($video_id) && strlen($data) > 32){
-				$message = __("%s must be a valid YouTube video id or video URL", array($this->get('label')));
-				return self::__INVALID_FIELDS__;
-			}
-
-			$video = YouTubeHelper::getVideoInfo($video_id);
-
-			if (!$video && strlen($data) > 32){
-				$message = __("Failed to load video XML");
-				return self::__INVALID_FIELDS__;
-			}
-
-			return self::__OK__;
+			$wrapper->appendChild($label);
+			
+			$this->appendRequiredCheckbox($wrapper);
+			$this->appendShowColumnCheckbox($wrapper);
 		}
 
-		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
-			if (strlen($data) <= 32) return array();
-
-			$status = self::__OK__;
-
-			$result = YouTubeHelper::getVideoInfo(YouTubeHelper::getVideoId($data));
-
-			// HACK: couldn't figure out how to validate in checkPostFieldData() and then prevent
-			// this processRawFieldData function executing, since it requires valid data to load the XML
-			if (!is_array($result)) {
-				$message = __("Failed to load clip XML");
-				$status = self::__MISSING_FIELDS__;
-				return;
-			}
-
-			return $result;
-		}
-
-		public function appendFormattedElement(&$wrapper, $data) {
-			if(!is_array($data) || empty($data)) return;
-
-			// If cache has expired refresh the data array from parsing the API XML
-			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
-				$data = YouTubeHelper::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
-			}
-
-			$video = new XMLElement($this->get('element_name'));
-
-			$video->setAttributeArray(array(
-				'video-id' => $data['video_id'],
-				'duration' => $data['duration'],
-				'favorites' => $data['favorites'],
-				'views' => $data['views']
-			));
-
-			$video->appendChild(new XMLElement('title', General::sanitize($data['title'])));
-			$video->appendChild(new XMLElement('description', General::sanitize($data['description'])));
-
-			$author = new XMLElement('author');
-			$author->appendChild(new XMLElement('name', General::sanitize($data['user_name'])));
-			$author->appendChild(new XMLElement('url', $data['user_url']));
-
-			$video->appendChild($author);
-			$wrapper->appendChild($video);
-		}
+	/*-------------------------------------------------------------------------
+		Publish:
+	-------------------------------------------------------------------------*/
 
 		public function displayPublishPanel(&$wrapper, $data=NULL, $flagWithError=NULL, $fieldnamePrefix=NULL, $fieldnamePostfix=NULL){
 			$value = General::sanitize($data['video_id']);
-			$source = "http://www.youtube.com/watch/?v={$value}";
 			$label = Widget::Label($this->get('label'));
 
 			$video_id = new XMLElement('input');
 			$video_id->setAttribute('type', 'text');
 			$video_id->setAttribute('name', 'fields' . $fieldnamePrefix . '[' . $this->get('element_name') . ']' . $fieldnamePostfix);
-			$video_id->setAttribute('value', $source);
+			$video_id->setAttribute('value', $value);
 
-			if (strlen($value) == 0 || $flagWithError != NULL){
+			if ($this->get('required') != 'yes') $label->appendChild(new XMLElement('i', __('Optional')));
 
-				if($this->get('required') != 'yes') $label->appendChild(new XMLElement('i', 'Optional'));
-
-			} else {
-
+			if (strlen($value) == 11 && is_null($flagWithError)) {
 				$video_id->setAttribute('class', 'hidden');
 				$video_container = new XMLElement('span');
 
@@ -155,94 +137,108 @@
 			}
 
 			$label->appendChild($video_id);
-			if($flagWithError != NULL) $wrapper->appendChild(Widget::wrapFormElementWithError($label, $flagWithError));
-			else $wrapper->appendChild($label);
+
+			if ($flagWithError != NULL)
+				$wrapper->appendChild(Widget::wrapFormElementWithError($label, $flagWithError));
+			else
+				$wrapper->appendChild($label);
 		}
 
-		public function displayDatasourceFilterPanel(&$wrapper, $data=NULL, $errors=NULL, $fieldnamePrefix=NULL, $fieldnamePostfix=NULL){
-			$wrapper->appendChild(new XMLElement('h4', $this->get('label') . ' <i>'.$this->Name().'</i>'));
-			$label = Widget::Label('Video ID');
-			$label->appendChild(Widget::Input('fields[filter]'.($fieldnamePrefix ? '['.$fieldnamePrefix.']' : '').'['.$this->get('id').']'.($fieldnamePostfix ? '['.$fieldnamePostfix.']' : ''), ($data ? General::sanitize($data) : NULL)));
-			$wrapper->appendChild($label);
+	/*-------------------------------------------------------------------------
+		Input:
+	-------------------------------------------------------------------------*/
+
+		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
+			$status = self::__OK__;
+			
+			if (empty($data))
+				return array();
+
+			$data = self::parseData($data);
+
+			$video_id = self::getVideoId($data);
+			$result = self::getVideoInfo($video_id);
+
+			if (!is_array($result)) {
+				$message = __("Failed to load clip XML");
+				$status = self::__MISSING_FIELDS__;
+				return;
+			}
+
+			return $result;
+		}
+
+		public function checkPostFieldData($data, &$message, $entry_id=NULL){
+			$message = NULL;
+
+			if($this->get('required') == 'yes' && strlen($data) == 0){
+				$message = __("'%s' is a required field.", array($this->get('label')));
+				return self::__MISSING_FIELDS__;
+			}	
+
+			/*
+				$video_id = self::getVideoId($data);
+
+				if (is_null($video_id) && strlen($data) > 32){
+					$message = __("%s must be a valid YouTube video id or video URL", array($this->get('label')));
+					return self::__INVALID_FIELDS__;
+				}
+
+				$video = self::getVideoInfo($video_id);
+
+				if (!$video && strlen($data) > 32){
+					$message = __("Failed to load video XML");
+					return self::__INVALID_FIELDS__;
+				}
+			*/
+
+			return self::__OK__;
+		}
+
+	/*-------------------------------------------------------------------------
+		Output:
+	-------------------------------------------------------------------------*/
+
+		public function appendFormattedElement(&$wrapper, $data) {
+			if(!is_array($data) || empty($data)) return;
+
+			// If cache has expired refresh the data array from parsing the API XML
+			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
+				$data = self::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
+			}
+
+			$video = new XMLElement($this->get('element_name'));
+
+			$video->setAttributeArray(array(
+				'video-id' => $data['video_id'],
+				'duration' => $data['duration'],
+				'favorites' => $data['favorites'],
+				'views' => $data['views']
+			));
+
+			$video->appendChild(new XMLElement('title', General::sanitize($data['title'])));
+			$video->appendChild(new XMLElement('description', General::sanitize($data['description'])));
+
+			$author = new XMLElement('author');
+			$author->appendChild(new XMLElement('name', General::sanitize($data['user_name'])));
+			$author->appendChild(new XMLElement('url', $data['user_url']));
+
+			$video->appendChild($author);
+			$wrapper->appendChild($video);
 		}
 
 		public function prepareTableValue($data, XMLElement $link=NULL){
-			if(strlen($data['video_id']) == 0) return NULL;
+			if (strlen($data['video_id']) == 0) return NULL;
 
-			$image = '<img src="http://i.ytimg.com/vi/' . $data['video_id'] . '/1.jpg" width="120" height="90"/>';
+			$image = '<img src="http://i.ytimg.com/vi/' . $data['video_id'] . '/1.jpg" width="120" height="90" />';
 
-			if($link){
+			if ($link) {
 				$link->setValue($image);
 				return $link->generate();
 			} else {
 				$link = new XMLElement('span', $image . '<br />' . $data['views'] . ' views');
 				return $link->generate();
 			}
-		}
-
-		public function displaySettingsPanel(&$wrapper, $errors=NULL){
-			parent::displaySettingsPanel($wrapper, $errors);
-			$this->appendRequiredCheckbox($wrapper);
-			$this->appendShowColumnCheckbox($wrapper);
-
-			$label = Widget::Label('Update cache (minutes; leave blank to never update) <i>Optional</i>');
-			$label->appendChild(Widget::Input('fields[' . $this->get('sortorder') . '][refresh]', $this->get('refresh')));
-			$wrapper->appendChild($label);
-		}
-
-		function buildSortingSQL(&$joins, &$where, &$sort, $order='ASC'){
-			$joins .= "INNER JOIN `tbl_entries_data_".$this->get('id')."` AS `ed` ON (`e`.`id` = `ed`.`entry_id`) ";
-			$sort = 'ORDER BY ' . (strtolower($order) == 'random' ? 'RAND()' : "`ed`.`views` $order");
-		}
-
-		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {
-			$field_id = $this->get('id');
-
-			if (self::isFilterRegex($data[0])) {
-				$this->_key++;
-				$pattern = str_replace('regexp:', '', $this->cleanValue($data[0]));
-				$joins .= "
-					LEFT JOIN
-						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
-						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
-				";
-				$where .= "
-					AND t{$field_id}_{$this->_key}.video_id REGEXP '{$pattern}'
-				";
-
-			} elseif ($andOperation) {
-				foreach ($data as $value) {
-					$this->_key++;
-					$value = $this->cleanValue($value);
-					$joins .= "
-						LEFT JOIN
-							`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
-							ON (e.id = t{$field_id}_{$this->_key}.entry_id)
-					";
-					$where .= "
-						AND t{$field_id}_{$this->_key}.video_id = '{$value}'
-					";
-				}
-			} else {
-				if (!is_array($data)) $data = array($data);
-
-				foreach ($data as &$value) {
-					$value = $this->cleanValue($value);
-				}
-
-				$this->_key++;
-				$data = implode("', '", $data);
-				$joins .= "
-					LEFT JOIN
-						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
-						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
-				";
-				$where .= "
-					AND t{$field_id}_{$this->_key}.video_id IN ('{$data}')
-				";
-			}
-
-			return true;
 		}
 
 		public function commit(){
@@ -255,32 +251,82 @@
 
 			$fields = array();
 			$fields['field_id'] = $id;
-			$fields['refresh'] = $refresh;
+			$fields['refresh'] = is_null($refresh) ? '0' : $refresh;
 
-			$this->_engine->Database->query("DELETE FROM `tbl_fields_".$this->handle()."` WHERE `field_id` = '$id' LIMIT 1");
-			return $this->_engine->Database->insert($fields, 'tbl_fields_' . $this->handle());
+			Symphony::Database()->query("DELETE FROM `tbl_fields_" . $this->handle() . "` WHERE `field_id` = '$id' LIMIT 1");
+
+			return Symphony::Database()->insert($fields, 'tbl_fields_' . $this->handle());
 		}
 
-		public function createTable(){
-			return $this->_engine->Database->query(
-				"CREATE TABLE IF NOT EXISTS `tbl_entries_data_" . $this->get('id') . "` (
-					`id` int(11) unsigned NOT NULL auto_increment,
-					`entry_id` int(11) unsigned NOT NULL,
-					`video_id` varchar(11) default NULL,
-					`title` varchar(255) default NULL,
-					`description` text,
-					`keywords` text,
-					`duration` int(11) unsigned NOT NULL,
-					`favorites` int(11) unsigned NOT NULL,
-					`views` int(11) unsigned NOT NULL,
-					`user_name` varchar(255) default NULL,
-					`user_url` varchar(255) default NULL,
-					`published_date` int(11) unsigned NOT NULL,
-					`last_updated` int(11) unsigned NOT NULL,
-					PRIMARY KEY  (`id`),
-					KEY `entry_id` (`entry_id`)
-				);"
+	/*-------------------------------------------------------------------------
+		Helpers:
+	-------------------------------------------------------------------------*/
+
+		public static function parseData($data) {
+			if (parse_url($data)) return $data;
+
+			if (strlen($data) == 11) {
+				return "http://www.youtube.com/watch?v={$data}";
+			}
+
+			return NULL;
+		}
+
+		public static function getVideoId($data) {
+			$url = parse_url($data);
+
+			if (is_array($url) && preg_match('/youtube\.com/i', $url['host'])){
+				if (preg_match('/v=(?<id>[a-z0-9-_]+)/i', $url['query'], $match)){
+					return $match['id'];
+				}
+			}
+	 	}
+
+		public static function getVideoFeed($video_id) {
+			return DOMDocument::load("http://gdata.youtube.com/feeds/api/videos/{$video_id}");
+		}
+
+		public static function getVideoInfo($video_id) {
+			// namespaces
+			$ns = array();
+			$ns['media'] = 'http://search.yahoo.com/mrss/';
+			$ns['yt'] = 'http://gdata.youtube.com/schemas/2007';
+
+			// response xml
+			$video = self::getVideoFeed($video_id);
+
+			if (!$video) return;
+
+			$entry = $video->getElementsByTagName('entry')->item(0);
+			$media = $entry->getElementsByTagNameNS($ns['media'], 'group')->item(0);
+			$author = $entry->getElementsByTagName('author')->item(0);
+			$statistics = $entry->getElementsByTagNameNS($ns['yt'], 'statistics')->item(0);
+
+			$data = array(
+				'video_id' => $video_id,
+				'title' => $entry->getElementsByTagName('title')->item(0)->nodeValue,
+				'description' => $entry->getElementsByTagName('content')->item(0)->nodeValue,
+				'keywords' => $media->getElementsByTagNameNS($ns['media'], 'keywords')->item(0)->nodeValue,
+				'duration' => $media->getElementsByTagNameNS($ns['yt'], 'duration')->item(0)->getAttribute('seconds'),
+				'favorites' => $statistics->getAttribute('favoriteCount'),
+				'views' => $statistics->getAttribute('viewCount'),
+				'user_name' => $author->getElementsByTagName('name')->item(0)->nodeValue,
+				'user_url' => 'http://www.youtube.com/user/' . strtolower($author->getElementsByTagName('name')->item(0)->nodeValue),
+				'published_date' => @strtotime($entry->getElementsByTagName('published')->item(0)->nodeValue),
+				'last_updated' => time()
 			);
+
+			return $data;
+		}
+
+		public static function updateVideoInfo($video_id, $field_id, $entry_id, $database) {
+			$data = self::getVideoInfo($clip_id);
+
+			if (!$data) return;
+
+			Symphony::Database()->update($data, "sym_entries_data_{$field_id}", "entry_id={$entry_id}");
+
+			return $data;
 		}
 
 	}
