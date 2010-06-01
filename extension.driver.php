@@ -1,12 +1,11 @@
-<?php
-
+<?php	
 	class extension_youtube_videos extends Extension {
 
 		public function about() {
 			return array(
 				'name'			=> 'Field: YouTube',
-				'version'		=> '0.2',
-				'release-date'	=> '2010-03-08',
+				'version'		=> '0.3',
+				'release-date'	=> '2010-06-01',
 				'author'		=> array(
 					'name'			=> 'Rainer Borene',
 					'website'		=> 'http://rainerborene.com',

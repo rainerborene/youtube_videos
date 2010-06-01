@@ -2,6 +2,8 @@
 
 	if (!defined('__IN_SYMPHONY__')) die('<h2>Symphony Error</h2><p>You cannot directly access this file</p>');
 
+	require_once TOOLKIT . '/class.gateway.php';
+
 	class fieldYouTube_Video extends Field {
 
 	/*-------------------------------------------------------------------------
@@ -59,10 +61,17 @@
 			return true;
 		}
 
+		public function fetchIncludableElements() {
+			return array(
+				$this->get('element_name'),
+				$this->get('element_name') . ': embed'
+			);
+		}
+
 	/*-------------------------------------------------------------------------
 		Settings:
 	-------------------------------------------------------------------------*/
-	
+
 		public function displaySettingsPanel(&$wrapper, $errors=NULL){
 			parent::displaySettingsPanel($wrapper, $errors);
 
@@ -70,7 +79,7 @@
 			$label->appendChild(Widget::Input("fields[{$this->get('sortorder')}][refresh]", $this->get('refresh')));
 
 			$wrapper->appendChild($label);
-			
+
 			$this->appendRequiredCheckbox($wrapper);
 			$this->appendShowColumnCheckbox($wrapper);
 		}
@@ -92,36 +101,11 @@
 
 			if (strlen($value) == 11 && is_null($flagWithError)) {
 				$video_id->setAttribute('class', 'hidden');
+
 				$video_container = new XMLElement('span');
-
-				$video_url = 'http://www.youtube.com/v/' . $value;
-
-				$video = new XMLElement('object');
-				$video->setAttribute('width', 560);
-				$video->setAttribute('height', 340);
-
-				$param = new XMLElement('param');
-				$param->setAttribute('allowfullscreen', 'true');
-				$video->appendChild($param);
-
-				$param = new XMLElement('param');
-				$param->setAttribute('allowscriptaccess', 'always');
-				$video->appendChild($param);
-
-				$param = new XMLElement('param');
-				$param->setAttribute('movie', $video_url);
-				$video->appendChild($param);
-
-				$embed = new XMLElement('embed');
-				$embed->setAttribute('src', $video_url);
-				$embed->setAttribute('allowfullscreen', 'true');
-				$embed->setAttribute('allowscriptaccess', 'always');
-				$embed->setAttribute('width', 560);
-				$embed->setAttribute('height', 340);
-				$embed->setAttribute('type', 'application/x-shockwave-flash');
-
-				$video->appendChild($embed);
-				$video_container->appendChild($video);
+				$video_container->appendChild(
+					self::createPlayer($value)
+				);
 
 				$description = new XMLElement('div');
 				$description->setAttribute('class', 'description');
@@ -150,18 +134,17 @@
 
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
 			$status = self::__OK__;
-			
-			if (empty($data))
-				return array();
+
+			if (empty($data)) return array();
 
 			$data = self::parseData($data);
-
 			$video_id = self::getVideoId($data);
+
 			$result = self::getVideoInfo($video_id);
 
-			if (!is_array($result)) {
+			if (is_null($result)) {
 				$message = __("Failed to load clip XML");
-				$status = self::__MISSING_FIELDS__;
+				$status = self::__INVALID_FIELDS__;
 				return;
 			}
 
@@ -174,23 +157,20 @@
 			if($this->get('required') == 'yes' && strlen($data) == 0){
 				$message = __("'%s' is a required field.", array($this->get('label')));
 				return self::__MISSING_FIELDS__;
-			}	
+			}
 
-			/*
+			if($data) {
+				$data = self::parseData($data);
 				$video_id = self::getVideoId($data);
 
-				if (is_null($video_id) && strlen($data) > 32){
-					$message = __("%s must be a valid YouTube video id or video URL", array($this->get('label')));
+				if(is_null($video_id) || strlen($video_id) != 11) {
+					$message = __("%s must be a valid YouTube Video ID or URL", array(
+						$this->get('label')
+					));
+
 					return self::__INVALID_FIELDS__;
 				}
-
-				$video = self::getVideoInfo($video_id);
-
-				if (!$video && strlen($data) > 32){
-					$message = __("Failed to load video XML");
-					return self::__INVALID_FIELDS__;
-				}
-			*/
+			}
 
 			return self::__OK__;
 		}
@@ -199,16 +179,15 @@
 		Output:
 	-------------------------------------------------------------------------*/
 
-		public function appendFormattedElement(&$wrapper, $data) {
+		public function appendFormattedElement(&$wrapper, $data, $encode = false, $mode = null) {
 			if(!is_array($data) || empty($data)) return;
 
 			// If cache has expired refresh the data array from parsing the API XML
 			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
-				$data = self::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'), $this->Database);
+				$data = self::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'));
 			}
 
 			$video = new XMLElement($this->get('element_name'));
-
 			$video->setAttributeArray(array(
 				'video-id' => $data['video_id'],
 				'duration' => $data['duration'],
@@ -216,14 +195,22 @@
 				'views' => $data['views']
 			));
 
-			$video->appendChild(new XMLElement('title', General::sanitize($data['title'])));
-			$video->appendChild(new XMLElement('description', General::sanitize($data['description'])));
+			if($mode != "embed") {
+				$video->appendChild(new XMLElement('title', General::sanitize($data['title'])));
+				$video->appendChild(new XMLElement('description', General::sanitize($data['description'])));
 
-			$author = new XMLElement('author');
-			$author->appendChild(new XMLElement('name', General::sanitize($data['user_name'])));
-			$author->appendChild(new XMLElement('url', $data['user_url']));
+				$author = new XMLElement('author');
+				$author->appendChild(new XMLElement('name', General::sanitize($data['user_name'])));
+				$author->appendChild(new XMLElement('url', $data['user_url']));
 
-			$video->appendChild($author);
+				$video->appendChild($author);
+			}
+			else {
+				$video->appendChild(
+					self::createPlayer($data['video_id'])
+				);
+			}
+
 			$wrapper->appendChild($video);
 		}
 
@@ -251,7 +238,7 @@
 
 			$fields = array();
 			$fields['field_id'] = $id;
-			$fields['refresh'] = is_null($refresh) ? '0' : $refresh;
+			$fields['refresh'] = ($refresh == '') ? '0' : $refresh;
 
 			Symphony::Database()->query("DELETE FROM `tbl_fields_" . $this->handle() . "` WHERE `field_id` = '$id' LIMIT 1");
 
@@ -263,13 +250,16 @@
 	-------------------------------------------------------------------------*/
 
 		public static function parseData($data) {
-			if (parse_url($data)) return $data;
+			$url = parse_url($data);
 
-			if (strlen($data) == 11) {
+			if (isset($url['host'])) {
+				return $data;
+			}
+			else if(strlen($data) == 11) {
 				return "http://www.youtube.com/watch?v={$data}";
 			}
 
-			return NULL;
+			return null;
 		}
 
 		public static function getVideoId($data) {
@@ -280,13 +270,26 @@
 					return $match['id'];
 				}
 			}
+
+			return null;
 	 	}
 
 		public static function getVideoFeed($video_id) {
-			return DOMDocument::load("http://gdata.youtube.com/feeds/api/videos/{$video_id}");
+			// Fetch document:
+			$gateway = new Gateway();
+			$gateway->init();
+			$gateway->setopt('URL', "http://gdata.youtube.com/feeds/api/videos/{$video_id}");
+			$gateway->setopt('TIMEOUT', 6);
+			$data = $gateway->exec();
+
+			if($data == "Invalid id") return null;
+
+			return DOMDocument::loadXML($data);
 		}
 
-		public static function getVideoInfo($video_id) {
+		public static function getVideoInfo($video_id = null) {
+			if(is_null($video_id)) return null;
+
 			// namespaces
 			$ns = array();
 			$ns['media'] = 'http://search.yahoo.com/mrss/';
@@ -295,38 +298,78 @@
 			// response xml
 			$video = self::getVideoFeed($video_id);
 
-			if (!$video) return;
+			if (is_null($video)) return null;
 
 			$entry = $video->getElementsByTagName('entry')->item(0);
-			$media = $entry->getElementsByTagNameNS($ns['media'], 'group')->item(0);
-			$author = $entry->getElementsByTagName('author')->item(0);
-			$statistics = $entry->getElementsByTagNameNS($ns['yt'], 'statistics')->item(0);
 
-			$data = array(
-				'video_id' => $video_id,
-				'title' => $entry->getElementsByTagName('title')->item(0)->nodeValue,
-				'description' => $entry->getElementsByTagName('content')->item(0)->nodeValue,
-				'keywords' => $media->getElementsByTagNameNS($ns['media'], 'keywords')->item(0)->nodeValue,
-				'duration' => $media->getElementsByTagNameNS($ns['yt'], 'duration')->item(0)->getAttribute('seconds'),
-				'favorites' => $statistics->getAttribute('favoriteCount'),
-				'views' => $statistics->getAttribute('viewCount'),
-				'user_name' => $author->getElementsByTagName('name')->item(0)->nodeValue,
-				'user_url' => 'http://www.youtube.com/user/' . strtolower($author->getElementsByTagName('name')->item(0)->nodeValue),
-				'published_date' => @strtotime($entry->getElementsByTagName('published')->item(0)->nodeValue),
-				'last_updated' => time()
-			);
+			if(is_object($entry)) {
+				$media = $entry->getElementsByTagNameNS($ns['media'], 'group')->item(0);
+				$author = $entry->getElementsByTagName('author')->item(0);
+				$statistics = $entry->getElementsByTagNameNS($ns['yt'], 'statistics')->item(0);
 
-			return $data;
+				$data = array(
+					'video_id' => $video_id,
+					'title' => $entry->getElementsByTagName('title')->item(0)->nodeValue,
+					'description' => $entry->getElementsByTagName('content')->item(0)->nodeValue,
+					'keywords' => $media->getElementsByTagNameNS($ns['media'], 'keywords')->item(0)->nodeValue,
+					'duration' => $media->getElementsByTagNameNS($ns['yt'], 'duration')->item(0)->getAttribute('seconds'),
+					'favorites' => $statistics->getAttribute('favoriteCount'),
+					'views' => $statistics->getAttribute('viewCount'),
+					'user_name' => $author->getElementsByTagName('name')->item(0)->nodeValue,
+					'user_url' => 'http://www.youtube.com/user/' . strtolower($author->getElementsByTagName('name')->item(0)->nodeValue),
+					'published_date' => @strtotime($entry->getElementsByTagName('published')->item(0)->nodeValue),
+					'last_updated' => time()
+				);
+
+				return $data;
+			}
+			else {
+				return null;
+			}
 		}
 
-		public static function updateVideoInfo($video_id, $field_id, $entry_id, $database) {
-			$data = self::getVideoInfo($clip_id);
+		public static function updateVideoInfo($video_id, $field_id, $entry_id) {
+			$data = self::getVideoInfo($video_id);
 
-			if (!$data) return;
+			if (is_null($data)) return null;
 
 			Symphony::Database()->update($data, "sym_entries_data_{$field_id}", "entry_id={$entry_id}");
 
 			return $data;
+		}
+
+		public static function createPlayer($video_id = null) {
+			if(is_null($video_id)) return null;
+
+			$video_url = 'http://www.youtube.com/v/' . $video_id;
+
+			$video = new XMLElement('object');
+			$video->setAttribute('width', 560);
+			$video->setAttribute('height', 340);
+
+			$param = new XMLElement('param');
+			$param->setAttribute('allowfullscreen', 'true');
+			$video->appendChild($param);
+
+			$param = new XMLElement('param');
+			$param->setAttribute('allowscriptaccess', 'always');
+			$video->appendChild($param);
+
+			$param = new XMLElement('param');
+			$param->setAttribute('movie', $video_url);
+			$video->appendChild($param);
+
+			$embed = new XMLElement('embed');
+			$embed->setAttribute('src', $video_url);
+			$embed->setAttribute('allowfullscreen', 'true');
+			$embed->setAttribute('allowscriptaccess', 'always');
+			$embed->setAttribute('width', 560);
+			$embed->setAttribute('height', 340);
+			$embed->setAttribute('type', 'application/x-shockwave-flash');
+
+			$video->appendChild($embed);
+
+			return $video;
 		}
 
 	}
