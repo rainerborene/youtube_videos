@@ -228,6 +228,50 @@
 			}
 		}
 
+		public function buildSortingSQL(&$joins, &$where, &$sort, $order='ASC'){
+			$joins .= "LEFT OUTER JOIN `tbl_entries_data_".$this->get('id')."` AS `ed` ON (`e`.`id` = `ed`.`entry_id`) ";
+			$sort = 'ORDER BY ' . (in_array(strtolower($order), array('random', 'rand')) ? 'RAND()' : "`ed`.`views` $order");
+		}
+
+		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {
+			$field_id = $this->get('id');
+
+			if ($andOperation) {
+				foreach ($data as $value) {
+					$this->_key++;
+					$value = $this->cleanValue($value);
+					$joins .= "
+						LEFT JOIN
+							`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+							ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+					";
+					$where .= "
+						AND t{$field_id}_{$this->_key}.video_id = '{$value}'
+					";
+				}
+
+			} else {
+				if (!is_array($data)) $data = array($data);
+
+				foreach ($data as &$value) {
+					$value = $this->cleanValue($value);
+				}
+
+				$this->_key++;
+				$data = implode("', '", $data);
+				$joins .= "
+					LEFT JOIN
+						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+				";
+				$where .= "
+					AND t{$field_id}_{$this->_key}.video_id IN ('{$data}')
+				";
+			}
+
+			return true;
+		}
+
 		public function commit(){
 			if(!parent::commit()) return false;
 
