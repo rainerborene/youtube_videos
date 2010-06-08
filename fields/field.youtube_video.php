@@ -183,7 +183,7 @@
 			if(!is_array($data) || empty($data)) return;
 
 			// If cache has expired refresh the data array from parsing the API XML
-			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60)){
+			if ((time() - $data['last_updated']) > ($this->_fields['refresh'] * 60) && $this->_fields['refresh'] > 0){
 				$data = self::updateVideoInfo($data['video_id'], $this->_fields['id'], $wrapper->getAttribute('id'));
 			}
 
