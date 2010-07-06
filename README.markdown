@@ -19,6 +19,7 @@ This is a Symphony extension that allows you to integrate YouTube videos into yo
 ### Changes
 
 0.3
+
 - Added option for 'embed' output
 - Made DOMDocument request more robust
 - Better handling of Video ID's
