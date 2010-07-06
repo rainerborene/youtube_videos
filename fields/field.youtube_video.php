@@ -355,15 +355,30 @@
 					'video_id' => $video_id,
 					'title' => $entry->getElementsByTagName('title')->item(0)->nodeValue,
 					'description' => $entry->getElementsByTagName('content')->item(0)->nodeValue,
-					'keywords' => $media->getElementsByTagNameNS($ns['media'], 'keywords')->item(0)->nodeValue,
-					'duration' => $media->getElementsByTagNameNS($ns['yt'], 'duration')->item(0)->getAttribute('seconds'),
-					'favorites' => $statistics->getAttribute('favoriteCount'),
-					'views' => $statistics->getAttribute('viewCount'),
-					'user_name' => $author->getElementsByTagName('name')->item(0)->nodeValue,
-					'user_url' => 'http://www.youtube.com/user/' . strtolower($author->getElementsByTagName('name')->item(0)->nodeValue),
 					'published_date' => @strtotime($entry->getElementsByTagName('published')->item(0)->nodeValue),
 					'last_updated' => time()
 				);
+
+				if(is_object($media)) {
+					$data += array(
+						'keywords' => $media->getElementsByTagNameNS($ns['media'], 'keywords')->item(0)->nodeValue,
+						'duration' => $media->getElementsByTagNameNS($ns['yt'], 'duration')->item(0)->getAttribute('seconds')
+					);
+				}
+
+				if(is_object($author)) {
+					$data += array(
+						'user_name' => $author->getElementsByTagName('name')->item(0)->nodeValue,
+						'user_url' => 'http://www.youtube.com/user/' . strtolower($author->getElementsByTagName('name')->item(0)->nodeValue)
+					);
+				}
+
+				if(is_object($statistics)) {
+					$data += array(
+						'favorites' => $statistics->getAttribute('favoriteCount'),
+						'views' => $statistics->getAttribute('viewCount')
+					);
+				}
 
 				return $data;
 			}
