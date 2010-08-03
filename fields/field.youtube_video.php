@@ -323,10 +323,10 @@
 			$gateway = new Gateway();
 			$gateway->init();
 			$gateway->setopt('URL', "http://gdata.youtube.com/feeds/api/videos/{$video_id}");
-			$gateway->setopt('TIMEOUT', 6);
+			$gateway->setopt('TIMEOUT', 10);
 			$data = $gateway->exec();
 
-			if($data == "Invalid id") return null;
+			if($data == "Invalid id" || empty($data)) return null;
 
 			return DOMDocument::loadXML($data);
 		}
