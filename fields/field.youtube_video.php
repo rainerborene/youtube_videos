@@ -326,7 +326,9 @@
 			$gateway->setopt('TIMEOUT', 10);
 			$data = $gateway->exec();
 
-			if($data == "Invalid id" || empty($data)) return null;
+			$info = $gateway->getInfoLast();
+
+			if($data == "Invalid id" || empty($data) || $info['http_code'] != 200) return null;
 
 			return DOMDocument::loadXML($data);
 		}
