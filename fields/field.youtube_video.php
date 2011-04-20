@@ -13,10 +13,8 @@
 		public function __construct(&$parent) {
 			parent::__construct($parent);
 
-			$this->_name = 'YouTube Video';
-			$this->_required = false;
-
-			$this->set('required', 'no');
+			$this->_name = __('YouTube Video');
+			$this->_required = true;
 		}
 
 		public function createTable() {
@@ -80,8 +78,12 @@
 
 			$wrapper->appendChild($label);
 
-			$this->appendRequiredCheckbox($wrapper);
-			$this->appendShowColumnCheckbox($wrapper);
+			$div = new XMLElement('div', NULL, array('class' => 'compact'));
+
+			$this->appendRequiredCheckbox($div);
+			$this->appendShowColumnCheckbox($div);
+
+			$wrapper->appendChild($div);
 		}
 
 	/*-------------------------------------------------------------------------
